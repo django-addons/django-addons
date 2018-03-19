@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
-from functools import partial
-import imp
+import importlib.util
 import os
 import shutil
-import uuid
 from . import utils
 from .utils import global_settings
 from .exceptions import ImproperlyConfigured
 from pprint import pformat
 import six
 from six.moves import UserDict
+from functools import partial
 
 
 def save_settings_dump(settings, path):
@@ -96,7 +95,7 @@ class SettingsDictWrapper(UserDict):
 
 
 def load(settings, **kwargs):
-    global_debug = utils.boolean_ish(os.environ.get('ALDRYN_ADDONS_DEBUG', False))
+    global_debug = utils.boolean_ish(os.environ.get('DJANGO_ADDONS_DEBUG', False))
     # fallback to global debug flag
     debug = kwargs.get('debug', global_debug)
 
@@ -110,20 +109,20 @@ def load(settings, **kwargs):
         os.path.dirname(os.path.abspath(settings['__file__']))
     )
 
-    settings['ADDONS_DIR'] = env(
-        'ADDONS_DIR',
-        os.path.join(settings['BASE_DIR'], 'addons')
+    settings['ADDONS_CONFIG_DIR'] = env(
+        'ADDONS_CONFIG_DIR',
+        os.path.join(settings['BASE_DIR'], 'addons-config')
     )
-    settings['ADDONS_DEV_DIR'] = env(
-        'ADDONS_DEV_DIR',
-        os.path.join(settings['BASE_DIR'], 'addons-dev')
-    )
-    utils.mkdirs(settings['ADDONS_DEV_DIR'])
-    utils.mkdirs(settings['ADDONS_DIR'])
+    # settings['ADDONS_DEV_DIR'] = env(
+    #     'ADDONS_DEV_DIR',
+    #     os.path.join(settings['BASE_DIR'], 'addons-dev')
+    # )
+    # utils.mkdirs(settings['ADDONS_DEV_DIR'])
+    utils.mkdirs(settings['ADDONS_CONFIG_DIR'])
 
     if debug:
         # TODO: .debug is not multi-process safe!
-        debug_path = os.path.join(settings['ADDONS_DIR'], '.debug')
+        debug_path = os.path.join(settings['ADDONS_CONFIG_DIR'], '.debug')
         shutil.rmtree(debug_path, ignore_errors=True)
         utils.mkdirs(debug_path)
 
@@ -159,85 +158,69 @@ def load(settings, **kwargs):
     settings.setdefault('ADDON_URLS', [])
     settings.setdefault('ADDON_URLS_I18N', [])
     settings.setdefault('INSTALLED_APPS', [])
-    settings['INSTALLED_APPS'].append('aldryn_addons')
     # load Addon settings
-    if not (settings['INSTALLED_ADDONS'] and settings['ADDONS_DIR']):
+    if not (settings['INSTALLED_ADDONS'] and settings['ADDONS_CONFIG_DIR']):
         return
     for addon_name in settings['INSTALLED_ADDONS']:
-        if os.path.isabs(addon_name):
-            addon_path = addon_name
-            addon_name = os.path.basename(os.path.normpath(addon_path))
-            settings_json_path = None
-        else:
-            addon_dev_path = os.path.join(settings['ADDONS_DEV_DIR'], addon_name)
-            addon_normal_path = os.path.join(settings['ADDONS_DIR'], addon_name)
-            settings_json_path = os.path.join(addon_normal_path, 'settings.json')
-            if os.path.exists(addon_dev_path):
-                addon_path = addon_dev_path
-            elif os.path.exists(addon_normal_path):
-                addon_path = addon_normal_path
-            else:
-                raise ImproperlyConfigured(
-                    '{} Addon not found (tried {} and {})'.format(
-                        addon_name, addon_dev_path, addon_normal_path,
-                    )
-                )
         load_addon_settings(
-            name=addon_name,
-            path=addon_path,
+            addon_name=addon_name,
             settings=settings,
-            settings_json_path=settings_json_path,
         )
         debug_count = dump(settings, debug_count, addon_name)
 
 
-def load_addon_settings(name, path, settings, **kwargs):
-    addon_json_path = kwargs.get('addon_json_path', os.path.join(path, 'addon.json'))
-    addon_json = utils.json_from_file(addon_json_path)
-    settings_json_path = kwargs.get('settings_json_path', os.path.join(path, 'settings.json'))
-    # TODO: once we have optional "secrets" support on fields:
-    #       load the secret settings from environment variables here and add
-    #       them to addon_settings
-    aldryn_config_py_path = kwargs.get('aldryn_config_py_path', os.path.join(path, 'aldryn_config.py'))
-    if os.path.exists(aldryn_config_py_path):
-        aldryn_config = imp.load_source(
-            '{}_{}'.format(name, uuid.uuid4()).replace('-', '_'),
-            aldryn_config_py_path,
+def load_addon_settings(addon_name, settings):
+    # print(f'load addon settings "{addon_name}"')
+    addon_config_module_name = f'{addon_name}.addon_config'
+    addon_config_spec = importlib.util.find_spec(addon_config_module_name)
+    print(f'{addon_name} --> CONFIG spec {addon_config_spec}')
+    if not addon_config_spec:
+        raise ImproperlyConfigured(
+            f'{addon_config_module_name}'
         )
-        # Usually .to_settings() implementations will update settings in-place, as
-        # well as returning the resulting dict.
-        # But because the API is not defined clear enough, some might return a new
-        # dict with just their generated settings. So we also update the settings
-        # dict here, just to be sure.
-        if hasattr(aldryn_config, 'Form'):
-            try:
-                addon_settings = utils.json_from_file(settings_json_path)
-            except (ValueError, OSError):
-                try:
-                    addon_settings = utils.json_from_file(os.path.join(path, 'settings.json'))
-                except (ValueError, OSError):
-                    addon_settings = {}
+    # if addon_name == 'django_addon':
+    #     import ipdb; ipdb.set_trace()
+    addon_config_module = importlib.import_module(addon_config_module_name)
+    # addon_config_module = importlib.util.module_from_spec(addon_config_spec)
+    # print(f'{addon_name} --> CONFIG mod {addon_config_module}')
+    # addon_config_spec.loader.exec_module(addon_config_module)
+    # print(f'{addon_name} --> CONFIG mod loaded')
+    config_json_path = os.path.join(
+        settings['ADDONS_CONFIG_DIR'],
+        f'{addon_name}.json',
+    )
+    if os.path.exists(config_json_path):
+        config = utils.json_from_file(config_json_path)
+    else:
+        config = {}
 
-            # fill up remaining fields in
-            # addon_settings with defaults
-            form = aldryn_config.Form()
-            for field_name, field in form._fields:
-                if field_name not in addon_settings:
-                    addon_settings[field_name] = field.initial
-
-            settings.update_without_tracking_altered_state(
-                aldryn_config.Form().to_settings(addon_settings, settings),
+    addon_form_module_name = f'{addon_name}.addon_form'
+    addon_form_spec = importlib.util.find_spec(addon_form_module_name)
+    print(f'{addon_name} --> FORM spec {addon_form_spec}')
+    if addon_form_spec:
+        addon_form_module = importlib.import_module(addon_form_module_name)
+        # addon_form_module = importlib.util.module_from_spec(addon_form_spec)
+        # print(f'{addon_name} --> FORM mod {addon_form_module}')
+        # addon_form_spec.loader.exec_module(addon_form_module)
+        # print(f'{addon_name} --> FORM mod loaded')
+        Form = addon_form_module.Form
+        for field_name, field in Form._fields:
+            if field_name not in config:
+                config[field_name] = field.initial
+        form = Form(data=config)
+        if form.is_valid():
+            # load() must alter settings in-place.
+            addon_config_module.load(
+                formdata=form.cleaned_data,
+                settings=settings,
             )
-    # backwards compatibility for when installed-apps was defined in addon.json
-    for app in addon_json.get('installed-apps', []):
-        if app not in settings['INSTALLED_APPS']:
-            settings['INSTALLED_APPS'].append(app)
+        else:
+            raise ImproperlyConfigured(
+                f'{addon_form_module} validation error: ' + ', '.join([
+                    f'{field}: {error}' for field, error in form.errors.items()
+                ])
+            )
     # remove duplicates
     settings['INSTALLED_APPS'] = utils.remove_duplicates(settings['INSTALLED_APPS'])
-    if 'MIDDLEWARE_CLASSES' in settings:
-        # Django<2
-        settings['MIDDLEWARE_CLASSES'] = utils.remove_duplicates(settings['MIDDLEWARE_CLASSES'])
     if 'MIDDLEWARE' in settings:
-        # Django>=1.11
         settings['MIDDLEWARE'] = utils.remove_duplicates(settings['MIDDLEWARE'])
-

@@ -1,14 +1,7 @@
 # -*- coding: utf-8 -*-
 from setuptools import setup, find_packages
-from aldryn_addons import __version__
+from django_addons import __version__
 
-REQUIREMENTS = [
-    # intentionally left out as a workaround for pips ignorance regarding
-    # exact versions to install
-    # 'Django',
-    'django-getenv',
-    'six',
-]
 
 CLASSIFIERS = [
     'Development Status :: 5 - Production/Stable',
@@ -24,14 +17,19 @@ CLASSIFIERS = [
 ]
 
 setup(
-    name='aldryn-addons',
+    name='django-addons',
     version=__version__,
-    description='Aldryn Addons Framework',
+    description='django-addons Framework',
     author='Divio AG',
     author_email='info@divio.ch',
-    url='https://github.com/aldryn/aldryn-addons',
+    url='https://github.com/django-addons/django-addons',
     packages=find_packages(),
-    install_requires=REQUIREMENTS,
+    install_requires=[
+        # Django dependency is intentionally left out as a workaround for pips
+        # ignorance regarding exact versions to install.
+        # 'Django',
+        'django-getenv',
+    ],
     classifiers=CLASSIFIERS,
     include_package_data=True,
     zip_safe=False,

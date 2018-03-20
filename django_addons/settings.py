@@ -208,18 +208,21 @@ def load_addon_settings(addon_name, settings):
             if field_name not in config:
                 config[field_name] = field.initial
         form = Form(data=config)
-        if form.is_valid():
-            # load() must alter settings in-place.
-            addon_config_module.load(
-                formdata=form.cleaned_data,
-                settings=settings,
-            )
-        else:
+        if not form.is_valid():
             raise ImproperlyConfigured(
                 f'{addon_form_module} validation error: ' + ', '.join([
                     f'{field}: {error}' for field, error in form.errors.items()
                 ])
             )
+        formdata = form.cleaned_data
+    else:
+        formdata = {}
+    # load() must alter settings in-place.
+    addon_config_module.load(
+        formdata=formdata,
+        settings=settings,
+    )
+
     # remove duplicates
     settings['INSTALLED_APPS'] = utils.remove_duplicates(settings['INSTALLED_APPS'])
     if 'MIDDLEWARE' in settings:

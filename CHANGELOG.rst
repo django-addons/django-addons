@@ -1,6 +1,14 @@
 CHANGELOG
 =========
 
+2.0.0.dev1
+----------
+
+- rename to django-addons
+- drop support for python<3.6 and Django<2
+- read config from within addon packages instead of a manually copied file
+
+
 1.0.2 (2016-05-30)
 ------------------
 

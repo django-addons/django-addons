@@ -37,8 +37,8 @@ settings.py
 At the top if the settings the following code snippet::
 
     INSTALLED_ADDONS = [
-        'django-addons',
-        'django-addon',
+        'django_addons',
+        'django_addon',
     ]
 
     import django_addons.settings
@@ -84,10 +84,15 @@ pip install the Addon::
 Add it to ``INSTALLED_ADDONS`` in ``settings.py``::
 
     INSTALLED_ADDONS = [
-        'django-addons',
-        'django-addon',
-        'django-celery-addon',
+        'django_addons',
+        'django_addon',
+        'django_celery_addon',
     ]
+
+``django-celery-addon`` comes with a ``addon_config.py`` file, which is
+automatically picked up and used to configure celery. Some Addons also
+have a ``addon_form.py`` file, which contains a form defining some
+"meta-settings" to influence the configuration.
 
 
 ============

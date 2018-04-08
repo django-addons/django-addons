@@ -30,6 +30,7 @@ setup(
         # ignorance regarding exact versions to install.
         # 'Django',
         'django-getenv',
+        'django-addons-formlib',
     ],
     classifiers=CLASSIFIERS,
     include_package_data=True,

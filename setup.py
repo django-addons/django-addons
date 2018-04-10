@@ -3,19 +3,6 @@ from setuptools import setup, find_packages
 from django_addons import __version__
 
 
-CLASSIFIERS = [
-    'Development Status :: 5 - Production/Stable',
-    'Environment :: Web Environment',
-    'Framework :: Django',
-    'Intended Audience :: Developers',
-    'License :: OSI Approved :: BSD License',
-    'Operating System :: OS Independent',
-    'Programming Language :: Python',
-    'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
-    'Topic :: Software Development',
-    'Topic :: Software Development :: Libraries :: Application Frameworks',
-]
-
 setup(
     name='django-addons',
     version=__version__,
@@ -32,7 +19,11 @@ setup(
         'django-getenv',
         'django-addons-formlib',
     ],
-    classifiers=CLASSIFIERS,
     include_package_data=True,
     zip_safe=False,
+    classifiers=[
+        'Development Status :: 2 - Pre-Alpha',
+        'Programming Language :: Python :: 3.6',
+        'Framework :: Django :: 2.0',
+    ],
 )
